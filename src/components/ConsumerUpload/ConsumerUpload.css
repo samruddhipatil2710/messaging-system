@@ -1,0 +1,392 @@
+.consumer-upload-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Upload Section */
+.upload-section {
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.upload-section h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.upload-instructions {
+  background: #f8f9fa;
+  border-left: 4px solid #007bff;
+  padding: 15px 20px;
+  margin-bottom: 25px;
+  border-radius: 4px;
+}
+
+.upload-instructions h3 {
+  color: #007bff;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.upload-instructions ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.upload-instructions li {
+  margin-bottom: 8px;
+  color: #555;
+}
+
+/* File Input Section */
+.file-input-section {
+  margin-bottom: 20px;
+}
+
+.file-input {
+  padding: 10px;
+  border: 2px dashed #ddd;
+  border-radius: 4px;
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.file-input:hover {
+  border-color: #007bff;
+}
+
+.file-info {
+  margin-top: 10px;
+  padding: 10px;
+  background: #e7f3ff;
+  border-radius: 4px;
+}
+
+.file-info p {
+  margin: 0;
+  color: #333;
+}
+
+/* Preview Section */
+.preview-section {
+  margin: 25px 0;
+}
+
+.preview-section h3 {
+  color: #333;
+  font-size: 18px;
+  margin-bottom: 15px;
+}
+
+.preview-table-container {
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.preview-table thead {
+  background: #f8f9fa;
+}
+
+.preview-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+}
+
+.preview-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  color: #555;
+}
+
+.preview-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+/* Upload Button */
+.upload-button {
+  background: #28a745;
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+  width: 100%;
+  max-width: 300px;
+}
+
+.upload-button:hover:not(:disabled) {
+  background: #218838;
+}
+
+.upload-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Upload Status */
+.upload-status {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.upload-status.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.upload-status.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.upload-status p {
+  margin: 0 0 10px 0;
+}
+
+.upload-details {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.upload-details p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+/* Districts Section */
+.districts-section {
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.districts-section h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.no-data {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+  font-size: 16px;
+}
+
+.districts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.district-card {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.district-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #007bff;
+}
+
+.district-card h3 {
+  color: #007bff;
+  margin: 0 0 15px 0;
+  font-size: 20px;
+}
+
+.district-stats p {
+  margin: 8px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.district-stats strong {
+  color: #333;
+}
+
+.last-updated {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ddd;
+  font-size: 12px;
+  color: #888;
+}
+
+/* District Detail Modal */
+.district-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  border-bottom: 1px solid #ddd;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 22px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.close-button:hover {
+  background: #f8f9fa;
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px 30px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.total-count {
+  font-size: 16px;
+  font-weight: 600;
+  color: #007bff;
+  margin-bottom: 20px;
+}
+
+.consumers-table-container {
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.consumers-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.consumers-table thead {
+  background: #f8f9fa;
+  position: sticky;
+  top: 0;
+}
+
+.consumers-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+}
+
+.consumers-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  color: #555;
+  font-size: 14px;
+}
+
+.consumers-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .consumer-upload-container {
+    padding: 10px;
+  }
+
+  .upload-section,
+  .districts-section {
+    padding: 20px;
+  }
+
+  .districts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    max-width: 95%;
+  }
+
+  .modal-header,
+  .modal-body {
+    padding: 15px 20px;
+  }
+
+  .preview-table,
+  .consumers-table {
+    font-size: 12px;
+  }
+
+  .preview-table th,
+  .preview-table td,
+  .consumers-table th,
+  .consumers-table td {
+    padding: 8px;
+  }
+}

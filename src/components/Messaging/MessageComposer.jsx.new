@@ -1,0 +1,187 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../Context/AuthContext';
+import { getAllocationsByUserId } from '../../firebase/dataAllocation';
+import { MESSAGING_CONFIG, createWebhookPayload, formatMobileNumber, validateMobileNumber } from '../../config/messaging';
+import AllocatedLocationSelector from '../Location/AllocatedLocationSelector';
+import ConfirmationModal from '../Common/ConfirmationModal';
+
+const MessageComposer = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+  const [messageType, setMessageType] = useState('whatsapp');
+  const [message, setMessage] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [recipientCount, setRecipientCount] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [userAllocations, setUserAllocations] = useState([]);
+  const [preselectedArea, setPreselectedArea] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [mobileNumbers, setMobileNumbers] = useState([]);
+  // Track which locations we've already fetched mobile numbers for
+  const fetchedLocationsRef = useRef({});
+  
+  // Diagnostic function to show all available field names and mobile number content
+  const diagnoseDataStructure = useCallback(async (district, city) => {
+    // Only run diagnostics in development mode
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    try {
+      const { getVillageData } = await import('../../firebase/excelStorage');
+      const result = await getVillageData(district, city, 3); // Get first 3 records
+      
+      if (result.success && result.data && result.data.length > 0) {
+        console.log('🔍 DATA STRUCTURE DIAGNOSIS:');
+        console.log('📋 Available field names:', Object.keys(result.data[0]));
+        
+        // Check mobile-related fields
+        const mobileFields = Object.keys(result.data[0]).filter(key => 
+          key.toLowerCase().includes('mobile') || 
+          key.toLowerCase().includes('phone') || 
+          key.toLowerCase().includes('contact')
+        );
+        console.log('📱 Mobile-related fields found:', mobileFields);
+        
+        // Only log the first record's mobile fields
+        if (mobileFields.length > 0) {
+          const record = result.data[0];
+          console.log('📱 Sample mobile field values:');
+          mobileFields.forEach(field => {
+            const value = record[field];
+            console.log(`  ${field}: "${value}"`);
+          });
+        }
+        
+        // Validate if it's a real mobile number
+        if (mobileFields.length > 0 && result.data[0][mobileFields[0]]) {
+          const value = result.data[0][mobileFields[0]];
+          if (value) {
+            const cleaned = value.toString().replace(/[-\\s().]/g, '');
+            const isValidMobile = /^[6-9]\\d{9}$/.test(cleaned) || /^91[6-9]\\d{9}$/.test(cleaned);
+            console.log(`    → Cleaned: "${cleaned}", Valid: ${isValidMobile ? '✅' : '❌'}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in diagnosis:', error);
+    }
+  }, []);
+
+  // Fetch mobile numbers from selected area
+  const fetchMobileNumbers = useCallback(async (district, city) => {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('MessageComposer: Fetching mobile numbers for', district, city);
+      }
+      
+      // Only run diagnostics in development mode
+      await diagnoseDataStructure(district, city);
+      
+      const { getVillageData } = await import('../../firebase/excelStorage');
+      
+      let allMobileNumbers = [];
+      
+      // Rest of fetchMobileNumbers implementation...
+      
+      setMobileNumbers([]);
+      return [];
+      
+    } catch (error) {
+      console.error('MessageComposer: Error fetching mobile numbers:', error);
+      return [];
+    }
+  }, [diagnoseDataStructure, validateMobileNumber, formatMobileNumber]);
+
+  // Fetch mobile numbers when location changes
+  useEffect(() => {
+    if (selectedLocation && selectedLocation.district) {
+      // Create a unique key for this location
+      const locationKey = `${selectedLocation.district}_${selectedLocation.city || 'all'}`;
+      
+      // Only fetch if we haven't already fetched for this location
+      if (!fetchedLocationsRef.current[locationKey]) {
+        const fetchNumbers = async () => {
+          try {
+            await fetchMobileNumbers(selectedLocation.district, selectedLocation.city);
+            // Mark this location as fetched
+            fetchedLocationsRef.current[locationKey] = true;
+          } catch (error) {
+            console.error('Error fetching mobile numbers:', error);
+          }
+        };
+        fetchNumbers();
+      }
+    } else if (selectedLocation === null) {
+      setMobileNumbers([]);
+      // Clear the fetched locations when selection is reset
+      fetchedLocationsRef.current = {};
+    }
+  }, [selectedLocation, fetchMobileNumbers]);
+
+  // Load user allocations and handle preselected location
+  useEffect(() => {
+    // Skip if we already have allocations
+    if (userAllocations.length > 0) return;
+    
+    const loadAllocationsAndPreselect = async () => {
+      // Implementation of loading allocations...
+    };
+
+    loadAllocationsAndPreselect();
+  }, [user, location.state]);
+
+  // Refresh allocations data
+  const refreshAllocations = async () => {
+    setIsRefreshing(true);
+    // Reset the fetched locations cache and mobile numbers
+    fetchedLocationsRef.current = {};
+    setMobileNumbers([]);
+    try {
+      // Implementation of refreshing allocations...
+    } catch (error) {
+      console.error('MessageComposer: Error refreshing allocations:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedLocation || recipientCount === 0) {
+      alert('Please select a location first!');
+      return;
+    }
+
+    if (!message.trim()) {
+      alert('Please enter a message!');
+      return;
+    }
+
+    setIsSending(true);
+    
+    try {
+      // Implementation of sending message...
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSendConfirm = async () => {
+    // Implementation of confirming message send...
+  };
+
+  return (
+    <div className="message-composer">
+      {/* Component UI */}
+    </div>
+  );
+};
+
+export default MessageComposer;

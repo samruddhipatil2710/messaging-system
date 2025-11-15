@@ -1,0 +1,31 @@
+.demo-credentials {
+  margin-top: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.demo-credentials h3 {
+  color: white;
+  font-size: 16px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.demo-credentials p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.error-message {
+  background: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid #ef9a9a;
+}

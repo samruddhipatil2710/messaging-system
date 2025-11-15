@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear localStorage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #c82333;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .success-msg {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #28a745;
+            display: none;
+        }
+        .items {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear localStorage Data</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Information:</strong><br>
+            This tool will remove all localStorage data from your browser for this application.
+            This includes any cached user data, settings, or temporary information.
+        </div>
+
+        <div id="items-container">
+            <h3>Current localStorage Items:</h3>
+            <div class="items" id="items-list"></div>
+        </div>
+
+        <button onclick="clearAll()">🗑️ Clear All localStorage</button>
+        <button class="success" onclick="location.reload()">🔄 Refresh</button>
+
+        <div class="success-msg" id="success-msg">
+            ✅ localStorage has been cleared successfully!
+        </div>
+    </div>
+
+    <script>
+        // Display current localStorage items
+        function displayItems() {
+            const itemsList = document.getElementById('items-list');
+            itemsList.innerHTML = '';
+            
+            if (localStorage.length === 0) {
+                itemsList.innerHTML = '<div class="item" style="color: #666;">No items in localStorage</div>';
+                return;
+            }
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                const truncatedValue = value.length > 100 ? value.substring(0, 100) + '...' : value;
+                
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.innerHTML = `<strong>${key}:</strong> ${truncatedValue}`;
+                itemsList.appendChild(item);
+            }
+        }
+
+        // Clear all localStorage
+        function clearAll() {
+            if (confirm('Are you sure you want to clear all localStorage data?')) {
+                localStorage.clear();
+                document.getElementById('success-msg').style.display = 'block';
+                displayItems();
+                
+                setTimeout(() => {
+                    document.getElementById('success-msg').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Display items on page load
+        displayItems();
+    </script>
+</body>
+</html>

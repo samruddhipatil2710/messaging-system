@@ -74,6 +74,7 @@ const AdminDashboard = () => {
           <Route path="users" element={<UserList />} />
           <Route path="data-allocation" element={<DataAllocation />} />
           <Route path="view-allocated-data" element={<ViewAllocatedData />} />
+          <Route path="send-messages" element={<MessageComposer />} />
           <Route path="messages" element={<MessageComposer />} />
           <Route path="message-history" element={<MessageHistory />} />
           <Route path="activity-logs" element={<ActivityLogs />} />
@@ -88,13 +89,25 @@ const AdminHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [userCount, setUserCount] = useState(0);
+  const [allocatedAreaCount, setAllocatedAreaCount] = useState(0);
 
   useEffect(() => {
-    const loadUserCount = async () => {
+    const loadCounts = async () => {
       if (!user) return;
       
       try {
-        const { getAllUsers } = await import('../../firebase/firestore');
+        const { getAllUsers, findUserLocation } = await import('../../firebase/firestore');
+        const { getAllocationsByCreator } = await import('../../firebase/dataAllocation');
+        
+        // Find the admin's location in the hierarchy
+        const adminLocation = await findUserLocation(user.email);
+        
+        if (!adminLocation.success) {
+          console.error('Failed to find admin location:', adminLocation.error);
+          return;
+        }
+        
+        // Get all users
         const result = await getAllUsers();
         
         if (!result.success) {
@@ -106,12 +119,26 @@ const AdminHome = () => {
         // Count users created by this admin
         const myUsers = allUsers.filter(u => u.role === 'user' && u.createdBy === user?.email);
         setUserCount(myUsers.length);
+        
+        // Count allocated areas/locations made by this admin
+        const allocationsResult = await getAllocationsByCreator(user.email);
+        if (allocationsResult.success) {
+          // Count total number of allocations (each allocation represents one or more locations)
+          const totalAllocations = allocationsResult.data.length;
+          setAllocatedAreaCount(totalAllocations);
+          
+          console.log(`✅ Admin ${user.email} has ${myUsers.length} users and ${totalAllocations} allocations`);
+        } else {
+          console.error('Failed to load allocations:', allocationsResult.error);
+          setAllocatedAreaCount(0);
+        }
+        
       } catch (error) {
-        console.error('Error loading user count:', error);
+        console.error('Error loading counts:', error);
       }
     };
     
-    loadUserCount();
+    loadCounts();
   }, [user]);
 
   return (
@@ -135,7 +162,7 @@ const AdminHome = () => {
             <span className="stat-title">Allocated Areas</span>
             <div className="stat-icon">📍</div>
           </div>
-          <div className="stat-value">{userCount}</div>
+          <div className="stat-value">{allocatedAreaCount}</div>
         </div>
       </div>
 

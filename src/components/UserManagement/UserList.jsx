@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import ConfirmModal from '../Common/ConfirmModal';
+import AlertModal from '../Common/AlertModal';
 
 const UserList = () => {
   const navigate = useNavigate();
@@ -15,6 +16,11 @@ const UserList = () => {
   const [usersPerPage] = useState(20);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
 
   if (loading) {
     return <div>Loading...</div>;
@@ -143,24 +149,45 @@ const UserList = () => {
         await loadUsers();
         
         console.log('✅ User deleted successfully');
+        setAlertModal({
+          isOpen: true,
+          message: 'User deleted successfully!',
+          type: 'success'
+        });
       } else {
-        alert('Error deleting user: ' + result.error);
+        setAlertModal({
+          isOpen: true,
+          message: 'Error deleting user: ' + result.error,
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Failed to delete user: ' + error.message);
+      setAlertModal({
+        isOpen: true,
+        message: 'Failed to delete user: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
   const toggleStatus = (userId) => {
     // TODO: Implement Firebase update
     console.log('Toggle user status in Firebase:', userId);
-    alert('Toggle status functionality - implement with Firebase updateUser()');
+    setAlertModal({
+      isOpen: true,
+      message: 'Toggle status functionality - implement with Firebase updateUser()',
+      type: 'info'
+    });
   };
 
   const exportToCSV = () => {
     if (filteredUsers.length === 0) {
-      alert('No users to export!');
+      setAlertModal({
+        isOpen: true,
+        message: 'No users to export!',
+        type: 'warning'
+      });
       return;
     }
 
@@ -208,6 +235,13 @@ const UserList = () => {
 
   return (
     <>
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
       <div className="page-header">
         <h1 className="page-title">User Management</h1>
         <p className="page-subtitle">View and manage all users</p>

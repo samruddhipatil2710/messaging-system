@@ -1,242 +1,113 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import { getAllocationsByCreator, getAllocationsByAllocator, getAllAllocations, getAllocationsByUserId, migrateUserAllocations } from '../../firebase/dataAllocation';
 import '../Dashboard/DashBoard.css';
-import AllocatedLocationSelector from '../Location/AllocatedLocationSelector';
 import ConfirmationModal from '../Common/ConfirmationModal';
+import AlertModal from '../Common/AlertModal';
 
 const ViewAllocatedData = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [allocations, setAllocations] = useState([]);
   const [loading, setLoading] = useState(true);
   // Set default view mode based on user role
   const getDefaultViewMode = () => {
     if (!user) return 'myAllocations'; // Default fallback
-    if (user.role === 'user') {
-      return 'sendMessages'; // Regular users can only see send messages
-    } else if (user.role === 'admin') {
+    if (user.role === 'admin') {
       return 'myAllocations'; // Admins default to seeing their own allocations first
     } else if (user.role === 'super_admin') {
       return 'myAllocations'; // Super admins default to seeing their own allocations first
+    } else if (user.role === 'main_admin') {
+      return 'myUsersAllocations'; // Main admin starts with users' allocations
     } else {
-      return 'myAllocations'; // Main admin also starts with their own allocations
+      return 'myAllocations'; // Default fallback
     }
   };
   
-  const [viewMode, setViewMode] = useState(() => getDefaultViewMode()); // 'myAllocations', 'myUsersAllocations', 'allAllocations', or 'sendMessages'
+  const [viewMode, setViewMode] = useState(() => getDefaultViewMode()); // 'myAllocations', 'myUsersAllocations', or 'allAllocations'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   
-  // Message sending state
-  const [messageType, setMessageType] = useState('whatsapp');
-  const [message, setMessage] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [recipientCount, setRecipientCount] = useState(0);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState('');
-  const [sending, setSending] = useState(false);
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    allocationId: null,
+    allocationDetails: null
+  });
 
   useEffect(() => {
     loadAllocations();
   }, [viewMode, user]);
 
-  const handleSend = (e) => {
-    e.preventDefault();
-    
-    if (!selectedLocation || recipientCount === 0) {
-      alert('Please select a location first!');
-      return;
-    }
-
-    // Build location description
-    let locationDesc = '';
-    if (selectedLocation.village) {
-      locationDesc = `${selectedLocation.village} village in ${selectedLocation.district} district`;
-    } else if (selectedLocation.district) {
-      locationDesc = `${selectedLocation.district} district`;
-    }
-
-    // Set confirmation message and show modal
-    const confirmMsg = `Send ${messageType.toUpperCase()} message to ${recipientCount.toLocaleString()} people?\n\nLocation: ${locationDesc}`;
-    setConfirmMessage(confirmMsg);
-    setShowConfirmModal(true);
+  // Function to handle delete allocation
+  const handleDeleteAllocation = (allocation) => {
+    setDeleteModal({
+      isOpen: true,
+      allocationId: allocation.id,
+      allocationDetails: allocation
+    });
   };
 
-  const handleSendConfirm = async () => {
-    // Build location description again for storage
-    let locationDesc = '';
-    if (selectedLocation.city) {
-      locationDesc = `${selectedLocation.city} village in ${selectedLocation.district} district`;
-    } else if (selectedLocation.district) {
-      locationDesc = `${selectedLocation.district} district`;
-    }
+  // Function to confirm delete allocation
+  const confirmDeleteAllocation = async () => {
+    if (!deleteModal.allocationId || !deleteModal.allocationDetails) return;
 
     try {
-      setShowConfirmModal(false);
-      setSending(true); // Show loading state
-      
-      // Import Firebase functions
-      const { createMessage } = await import('../../firebase/firestore');
+      const { removeAllocation } = await import('../../firebase/dataAllocation');
       const { createActivityLog } = await import('../../firebase/firestore');
-      const { getVillageData } = await import('../../firebase/excelStorage');
-      const { getConsumersByDistrict, getConsumersByCity } = await import('../../firebase/consumerData');
 
-      // Fetch mobile numbers based on selection
-      let mobileNumbers = [];
+      // Get userId from allocation details
+      const userId = deleteModal.allocationDetails.userId;
       
-      if (selectedLocation.district && selectedLocation.city && selectedLocation.city !== 'All Villages') {
-        // Fetch from specific village in district
-        console.log(`Fetching data for ${selectedLocation.district} -> ${selectedLocation.city}`);
-        const villageDataResult = await getVillageData(selectedLocation.district, selectedLocation.city);
-        
-        console.log('🔍 Village data result:', villageDataResult);
-        
-        if (villageDataResult.success && villageDataResult.data) {
-          console.log('📊 Sample records from village data:', villageDataResult.data.slice(0, 3));
-          console.log('📊 Total records found:', villageDataResult.data.length);
-          
-          // Check what fields exist in the first record
-          if (villageDataResult.data.length > 0) {
-            console.log('🔍 Available fields in first record:', Object.keys(villageDataResult.data[0]));
-          }
-          
-          mobileNumbers = villageDataResult.data
-            .map(record => record.mobileNumber)
-            .filter(num => num && num.trim() !== '');
-            
-          console.log('📱 Extracted mobile numbers:', mobileNumbers.slice(0, 5));
-        }
-        
-        // Also check consumers collection
-        const consumersResult = await getConsumersByCity(selectedLocation.city);
-        console.log('👥 Consumers result:', consumersResult);
-        
-        if (consumersResult.success && consumersResult.data) {
-          console.log('📊 Sample consumer records:', consumersResult.data.slice(0, 3));
-          console.log('📊 Total consumer records:', consumersResult.data.length);
-          
-          if (consumersResult.data.length > 0) {
-            console.log('🔍 Available fields in first consumer:', Object.keys(consumersResult.data[0]));
-          }
-          
-          const consumerNumbers = consumersResult.data
-            .map(consumer => consumer.mobileNumber)
-            .filter(num => num && num.trim() !== '');
-          console.log('📱 Extracted consumer mobile numbers:', consumerNumbers.slice(0, 5));
-          mobileNumbers = [...mobileNumbers, ...consumerNumbers];
-        }
-      } else if (selectedLocation.district) {
-        // Fetch all villages in district
-        console.log(`Fetching all data for district: ${selectedLocation.district}`);
-        
-        // Get all allocations for this district
-        const districtAllocations = allocations.filter(a => a.district === selectedLocation.district);
-        
-        for (const allocation of districtAllocations) {
-          const villages = allocation.villages || (allocation.city ? [allocation.city] : []);
-          
-          for (const village of villages) {
-            const villageDataResult = await getVillageData(selectedLocation.district, village);
-            if (villageDataResult.success && villageDataResult.data) {
-              const villageNumbers = villageDataResult.data
-                .map(record => record.mobileNumber)
-                .filter(num => num && num.trim() !== '');
-              mobileNumbers = [...mobileNumbers, ...villageNumbers];
-            }
-          }
-        }
-        
-        // Also check consumers collection for entire district
-        const consumersResult = await getConsumersByDistrict(selectedLocation.district);
-        if (consumersResult.success && consumersResult.data) {
-          const consumerNumbers = consumersResult.data
-            .map(consumer => consumer.mobileNumber)
-            .filter(num => num && num.trim() !== '');
-          mobileNumbers = [...mobileNumbers, ...consumerNumbers];
-        }
-      }
-
-      // Remove duplicates
-      mobileNumbers = [...new Set(mobileNumbers)];
-      
-      console.log(`📱 Found ${mobileNumbers.length} unique mobile numbers`);
-      console.log('Sample numbers:', mobileNumbers.slice(0, 5));
-
-      if (mobileNumbers.length === 0) {
-        alert('No mobile numbers found for the selected location!');
-        setSending(false);
+      if (!userId) {
+        setAlertModal({
+          isOpen: true,
+          message: 'Cannot delete allocation: User ID not found',
+          type: 'error'
+        });
+        setDeleteModal({ isOpen: false, allocationId: null, allocationDetails: null });
         return;
       }
 
-      // Send messages to all mobile numbers
-      const sendResult = await sendBulkMessages(mobileNumbers, message, messageType);
-      
-      const newMessage = {
-        sentBy: user.email,
-        type: messageType,
-        message: message,
-        area: locationDesc,
-        recipientCount: mobileNumbers.length,
-        actualRecipients: mobileNumbers.length,
-        sendStatus: sendResult.success ? 'sent' : 'failed',
-        sentAt: new Date().toISOString()
-      };
+      const result = await removeAllocation(userId, deleteModal.allocationId);
 
-      // Save to Firebase message history
-      await createMessage(newMessage);
+      if (result.success) {
+        // Create activity log
+        await createActivityLog({
+          action: 'allocation_deleted',
+          performedBy: user.email,
+          details: `Deleted allocation: ${deleteModal.allocationDetails.district} - ${deleteModal.allocationDetails.city || deleteModal.allocationDetails.villages?.join(', ')}`
+        });
 
-      // Add activity log to Firebase
-      await createActivityLog({
-        action: 'message_sent',
-        performedBy: user.email,
-        details: `Sent ${messageType.toUpperCase()} message to ${mobileNumbers.length} people in ${locationDesc}`
-      });
-      
-      console.log('Message sent:', newMessage);
-      
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-      setMessage('');
-      setSelectedLocation(null);
-      setRecipientCount(0);
-      setSending(false);
-      
-      alert(`Messages sent successfully to ${mobileNumbers.length} recipients!`);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert(`Failed to send message: ${error.message}`);
-      setSending(false);
-    }
-  };
+        setAlertModal({
+          isOpen: true,
+          message: 'Data allocation deleted successfully!',
+          type: 'success'
+        });
 
-  // Function to send bulk messages
-  const sendBulkMessages = async (mobileNumbers, messageText, type) => {
-    try {
-      console.log(`Sending ${type} messages to ${mobileNumbers.length} recipients`);
-      
-      // TODO: Integrate with actual messaging service (Twilio, WhatsApp API, etc.)
-      // For now, we'll simulate the sending
-      
-      if (type === 'whatsapp') {
-        // WhatsApp API integration
-        console.log('📱 Sending WhatsApp messages...');
-        // Example: await sendWhatsAppMessages(mobileNumbers, messageText);
-      } else if (type === 'text') {
-        // SMS API integration
-        console.log('📨 Sending SMS messages...');
-        // Example: await sendSMSMessages(mobileNumbers, messageText);
-      } else if (type === 'voice') {
-        // Voice call API integration
-        console.log('📞 Initiating voice calls...');
-        // Example: await sendVoiceCalls(mobileNumbers, messageText);
+        // Reload allocations
+        await loadAllocations();
+      } else {
+        setAlertModal({
+          isOpen: true,
+          message: 'Failed to delete allocation: ' + result.error,
+          type: 'error'
+        });
       }
-      
-      // Simulate successful send
-      return { success: true, count: mobileNumbers.length };
     } catch (error) {
-      console.error('Error in sendBulkMessages:', error);
-      return { success: false, error: error.message };
+      console.error('Error deleting allocation:', error);
+      setAlertModal({
+        isOpen: true,
+        message: 'Error deleting allocation: ' + error.message,
+        type: 'error'
+      });
+    } finally {
+      setDeleteModal({ isOpen: false, allocationId: null, allocationDetails: null });
     }
   };
 
@@ -443,6 +314,23 @@ const ViewAllocatedData = () => {
 
   return (
     <>
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, allocationId: null, allocationDetails: null })}
+        onConfirm={confirmDeleteAllocation}
+        title="Delete Data Allocation"
+        message={`Are you sure you want to delete this allocation?\n\nDistrict: ${deleteModal.allocationDetails?.district}\nVillage: ${deleteModal.allocationDetails?.city || deleteModal.allocationDetails?.villages?.join(', ')}\n\nThis action cannot be undone and the user will lose access to this data.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
       <div className="page-header">
         <h1 className="page-title">📊 View Allocated Data</h1>
         <p className="page-subtitle">View all data allocations for your users</p>
@@ -511,23 +399,6 @@ const ViewAllocatedData = () => {
             </button>
           )}
           
-          {/* Send Messages - For all roles */}
-          <button
-            onClick={() => setViewMode('sendMessages')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: '600',
-              background: viewMode === 'sendMessages' 
-                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                : '#e5e7eb',
-              color: viewMode === 'sendMessages' ? 'white' : '#374151'
-            }}
-          >
-            <i className="fa-solid fa-paper-plane"></i> Send Messages
-          </button>
           <button
             onClick={loadAllocations}
             disabled={loading}
@@ -547,180 +418,74 @@ const ViewAllocatedData = () => {
         </div>
       </div>
 
-      {viewMode === 'sendMessages' ? (
-        <>
-          <div className="page-header">
-            <h1 className="page-title">Send Messages</h1>
-            <p className="page-subtitle">Select location and send bulk messages</p>
-          </div>
+      {/* Statistics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+        <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#667eea' }}>{stats.totalUsers}</div>
+          <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Users</div>
+        </div>
+        <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#10b981' }}>{stats.totalAllocations}</div>
+          <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Allocations</div>
+        </div>
+        <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#f59e0b' }}>{stats.totalDistricts}</div>
+          <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Districts</div>
+        </div>
+        <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#ef4444' }}>{stats.totalVillages}</div>
+          <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Villages</div>
+        </div>
+      </div>
 
-          {success && <div className="success-message">Messages sent successfully!</div>}
-          {sending && (
-            <div className="content-card" style={{ background: '#e3f2fd', border: '2px solid #2196f3', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '24px', color: '#2196f3' }}></i>
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1976d2', fontSize: '16px' }}>Sending Messages...</div>
-                  <div style={{ fontSize: '14px', color: '#1565c0', marginTop: '5px' }}>Fetching mobile numbers and sending messages. Please wait...</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="content-card" style={{ overflow: 'visible', position: 'relative', zIndex: 1 }}>
-            <h2 className="card-title">Select Target Area</h2>
-            <AllocatedLocationSelector 
-              allocations={allocations}
-              onLocationChange={setSelectedLocation}
-              onCountChange={setRecipientCount}
+      {/* Filters */}
+      <div className="content-card" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div>
+            <label className="form-label">
+              <i className="fa-solid fa-search"></i> Search
+            </label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search by user, district, or village..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                padding: '10px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                width: '100%'
+              }}
             />
           </div>
-
-          <div className="content-card">
-            <h2 className="card-title">Message Type</h2>
-            <div className="message-type-selector">
-              <div 
-                className={`message-type-btn ${messageType === 'whatsapp' ? 'active' : ''}`}
-                onClick={() => setMessageType('whatsapp')}
-              >
-                <div className="message-type-icon"><i className="fa-brands fa-whatsapp" style={{color: '#25D366'}}></i></div>
-                <div className="message-type-label">WhatsApp</div>
-              </div>
-              <div 
-                className={`message-type-btn ${messageType === 'voice' ? 'active' : ''}`}
-                onClick={() => setMessageType('voice')}
-              >
-                <div className="message-type-icon"><i className="fa-solid fa-phone-volume" style={{color: '#FF6B6B'}}></i></div>
-                <div className="message-type-label">Voice</div>
-              </div>
-              <div 
-                className={`message-type-btn ${messageType === 'text' ? 'active' : ''}`}
-                onClick={() => setMessageType('text')}
-              >
-                <div className="message-type-icon"><i className="fa-solid fa-message" style={{color: '#4ECDC4'}}></i></div>
-                <div className="message-type-label">SMS</div>
-              </div>
-            </div>
-
-            <form onSubmit={handleSend}>
-              <div className="form-group">
-                <label className="form-label">Message Content</label>
-                <textarea
-                  className="form-textarea"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your message here..."
-                  required
-                />
-              </div>
-              <button 
-                type="submit" 
-                className="btn btn-primary"
-                disabled={!selectedLocation || recipientCount === 0 || sending}
-                style={{
-                  opacity: sending ? 0.6 : 1,
-                  cursor: sending ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {sending ? (
-                  <>
-                    <i className="fa-solid fa-spinner fa-spin"></i> Sending...
-                  </>
-                ) : recipientCount > 0 ? (
-                  `Send to ${recipientCount.toLocaleString()} People`
-                ) : (
-                  'Select Area First'
-                )}
-              </button>
-            </form>
+          <div>
+            <label className="form-label">
+              <i className="fa-solid fa-map-location-dot"></i> Filter by District
+            </label>
+            <select
+              className="form-select"
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+              style={{
+                padding: '10px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                width: '100%'
+              }}
+            >
+              {districts.map(district => (
+                <option key={district} value={district}>
+                  {district === 'all' ? 'All Districts' : district}
+                </option>
+              ))}
+            </select>
           </div>
-
-          <ConfirmationModal
-            isOpen={showConfirmModal}
-            onClose={() => setShowConfirmModal(false)}
-            onConfirm={handleSendConfirm}
-            message={confirmMessage}
-            confirmText="OK"
-            cancelText="Cancel"
-          />
-        </>
-      ) : (
-        <>
-          {/* Statistics */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-            <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{ fontSize: '32px', fontWeight: '700', color: '#667eea' }}>{stats.totalUsers}</div>
-              <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Users</div>
-            </div>
-            <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{ fontSize: '32px', fontWeight: '700', color: '#10b981' }}>{stats.totalAllocations}</div>
-              <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Allocations</div>
-            </div>
-            <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{ fontSize: '32px', fontWeight: '700', color: '#f59e0b' }}>{stats.totalDistricts}</div>
-              <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Districts</div>
-            </div>
-            <div className="content-card" style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{ fontSize: '32px', fontWeight: '700', color: '#ef4444' }}>{stats.totalVillages}</div>
-              <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>Villages</div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {viewMode !== 'sendMessages' && (
-        <>
-          {/* Filters */}
-          <div className="content-card" style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div>
-                <label className="form-label">
-                  <i className="fa-solid fa-search"></i> Search
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Search by user, district, or village..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{
-                    padding: '10px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
-                    width: '100%'
-                  }}
-                />
-              </div>
-              <div>
-                <label className="form-label">
-                  <i className="fa-solid fa-map-location-dot"></i> Filter by District
-                </label>
-                <select
-                  className="form-select"
-                  value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                  style={{
-                    padding: '10px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
-                    width: '100%'
-                  }}
-                >
-                  {districts.map(district => (
-                    <option key={district} value={district}>
-                      {district === 'all' ? 'All Districts' : district}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+        </div>
+      </div>
 
       {/* Allocations List */}
-      {viewMode !== 'sendMessages' && (
-        loading ? (
+      {loading ? (
           <div className="content-card" style={{ textAlign: 'center', padding: '40px' }}>
             <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '32px', color: '#667eea' }}></i>
             <p style={{ marginTop: '15px', color: '#666' }}>Loading allocations...</p>
@@ -817,6 +582,27 @@ const ViewAllocatedData = () => {
                             }
                           </div>
                         </div>
+                        <button
+                          onClick={() => handleDeleteAllocation(allocation)}
+                          style={{
+                            padding: '8px 16px',
+                            background: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseOver={(e) => e.target.style.background = '#dc2626'}
+                          onMouseOut={(e) => e.target.style.background = '#ef4444'}
+                        >
+                          <i className="fa-solid fa-trash"></i> Delete
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -825,7 +611,7 @@ const ViewAllocatedData = () => {
             );
           })
         )
-      )}
+      }
     </>
   );
 };

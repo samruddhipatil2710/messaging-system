@@ -91,6 +91,7 @@ const SuperAdminDashboard = () => {
           <Route path="users" element={<UserList />} />
           <Route path="data-allocation" element={<DataAllocation />} />
           <Route path="view-allocated-data" element={<ViewAllocatedData />} />
+          <Route path="send-messages" element={<MessageComposer />} />
           <Route path="messages" element={<MessageComposer />} />
           <Route path="message-history" element={<MessageHistory />} />
           <Route path="activity-logs" element={<ActivityLogs />} />

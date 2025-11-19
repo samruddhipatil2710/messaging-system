@@ -92,13 +92,73 @@ export const findUserLocation = async (userEmail) => {
       };
     }
 
+    // Check admins directly under mainAdmin (created by Main Admin)
+    try {
+      const mainAdminAdminsSnapshot = await getDocs(
+        collection(db, 'mainAdmin', 'mainAdmin', 'admins')
+      );
+      
+      console.log(`🔍 Checking ${mainAdminAdminsSnapshot.size} admins under mainAdmin/mainAdmin/admins`);
+      
+      for (const adminDoc of mainAdminAdminsSnapshot.docs) {
+        const adminEmail = adminDoc.data()['Email'];
+        console.log(`  Comparing admin email: "${adminEmail}" with search email: "${userEmail}"`);
+        
+        if (adminEmail === userEmail) {
+          console.log('✅ User is Admin (created by Main Admin)');
+          return {
+            success: true,
+            role: 'admin',
+            userId: adminDoc.id,
+            superAdminId: null, // No super admin parent
+            adminId: adminDoc.id
+          };
+        }
+        
+        // Check users under this admin (users created by admins under Main Admin)
+        try {
+          const adminUsersSnapshot = await getDocs(
+            collection(db, 'mainAdmin', 'mainAdmin', 'admins', adminDoc.id, 'users')
+          );
+          
+          console.log(`  🔍 Checking ${adminUsersSnapshot.size} users under admin ${adminDoc.id}`);
+          
+          for (const userDoc of adminUsersSnapshot.docs) {
+            const userDocEmail = userDoc.data()['Email'];
+            console.log(`    Comparing user email: "${userDocEmail}" with search email: "${userEmail}"`);
+            
+            if (userDocEmail === userEmail) {
+              console.log('✅ User found under Admin (Main Admin child)');
+              return {
+                success: true,
+                role: 'user',
+                userId: userDoc.id,
+                superAdminId: null, // No super admin parent
+                adminId: adminDoc.id // Admin ID who created this user
+              };
+            }
+          }
+        } catch (err) {
+          console.log(`  No users found under admin ${adminDoc.id} or collection doesn't exist yet`);
+        }
+      }
+    } catch (err) {
+      console.log('No admins found under mainAdmin/mainAdmin/admins or collection does not exist');
+    }
+
     // Search in superadmins
     const superAdminsSnapshot = await getDocs(
       collection(db, 'mainAdmin', 'mainAdmin', 'superadmins')
     );
     
+    console.log(`🔍 Checking ${superAdminsSnapshot.size} super admins`);
+    
     for (const superAdminDoc of superAdminsSnapshot.docs) {
-      if (superAdminDoc.data()['Email'] === userEmail) {
+      const superAdminEmail = superAdminDoc.data()['Email'];
+      console.log(`  Comparing super admin email: "${superAdminEmail}" with search email: "${userEmail}"`);
+      
+      if (superAdminEmail === userEmail) {
+        console.log('✅ User is Super Admin');
         return {
           success: true,
           role: 'super_admin',
@@ -113,8 +173,14 @@ export const findUserLocation = async (userEmail) => {
         collection(db, 'mainAdmin', 'mainAdmin', 'superadmins', superAdminDoc.id, 'admins')
       );
       
+      console.log(`  🔍 Checking ${adminsSnapshot.size} admins under super admin ${superAdminDoc.id}`);
+      
       for (const adminDoc of adminsSnapshot.docs) {
-        if (adminDoc.data()['Email'] === userEmail) {
+        const adminEmail = adminDoc.data()['Email'];
+        console.log(`    Comparing admin email: "${adminEmail}" with search email: "${userEmail}"`);
+        
+        if (adminEmail === userEmail) {
+          console.log('✅ User is Admin (under Super Admin)');
           return {
             success: true,
             role: 'admin',
@@ -130,8 +196,14 @@ export const findUserLocation = async (userEmail) => {
             collection(db, 'mainAdmin', 'mainAdmin', 'superadmins', superAdminDoc.id, 'admins', adminDoc.id, 'users')
           );
           
+          console.log(`    🔍 Checking ${adminUsersSnapshot.size} users under admin ${adminDoc.id} (under super admin)`);
+          
           for (const userDoc of adminUsersSnapshot.docs) {
-            if (userDoc.data()['Email'] === userEmail) {
+            const userDocEmail = userDoc.data()['Email'];
+            console.log(`      Comparing user email: "${userDocEmail}" with search email: "${userEmail}"`);
+            
+            if (userDocEmail === userEmail) {
+              console.log('✅ User found under Admin (under Super Admin)');
               return {
                 success: true,
                 role: 'user',
@@ -143,7 +215,7 @@ export const findUserLocation = async (userEmail) => {
           }
         } catch (err) {
           // Users collection might not exist yet for this admin
-          console.log(`No users found under admin ${adminDoc.id} or collection doesn't exist yet`);
+          console.log(`    No users found under admin ${adminDoc.id} or collection doesn't exist yet`);
         }
       }
       
@@ -152,8 +224,14 @@ export const findUserLocation = async (userEmail) => {
         collection(db, 'mainAdmin', 'mainAdmin', 'superadmins', superAdminDoc.id, 'users')
       );
       
+      console.log(`  🔍 Checking ${usersSnapshot.size} users under super admin ${superAdminDoc.id}`);
+      
       for (const userDoc of usersSnapshot.docs) {
-        if (userDoc.data()['Email'] === userEmail) {
+        const userDocEmail = userDoc.data()['Email'];
+        console.log(`    Comparing user email: "${userDocEmail}" with search email: "${userEmail}"`);
+        
+        if (userDocEmail === userEmail) {
+          console.log('✅ User found under Super Admin');
           return {
             success: true,
             role: 'user',
@@ -163,6 +241,33 @@ export const findUserLocation = async (userEmail) => {
           };
         }
       }
+    }
+
+    // Check users directly under mainAdmin (created by Main Admin)
+    try {
+      const mainAdminUsersSnapshot = await getDocs(
+        collection(db, 'mainAdmin', 'mainAdmin', 'users')
+      );
+      
+      console.log(`🔍 Checking ${mainAdminUsersSnapshot.size} users under mainAdmin/mainAdmin/users`);
+      
+      for (const userDoc of mainAdminUsersSnapshot.docs) {
+        const userDocEmail = userDoc.data()['Email'];
+        console.log(`  Comparing user email: "${userDocEmail}" with search email: "${userEmail}"`);
+        
+        if (userDocEmail === userEmail) {
+          console.log('✅ User found directly under Main Admin');
+          return {
+            success: true,
+            role: 'user',
+            userId: userDoc.id,
+            superAdminId: null, // No super admin parent
+            adminId: null // No admin parent, directly under Main Admin
+          };
+        }
+      }
+    } catch (err) {
+      console.log('No users found under mainAdmin/mainAdmin/users or collection does not exist');
     }
 
     // TEMPORARY: Check incorrect location for backwards compatibility
@@ -191,6 +296,7 @@ export const findUserLocation = async (userEmail) => {
       // Incorrect location doesn't exist, which is fine
     }
     
+    console.log('❌ User not found in any location');
     return { success: false, error: 'User not found' };
   } catch (error) {
     console.error('Error finding user location:', error);
@@ -301,11 +407,24 @@ export const createUser = async (userData, creatorInfo = null) => {
           userDoc
         );
       } 
-      // Check if creator is Admin (has both superAdminId and adminId)
+      // Check if creator is Admin created directly by Main Admin (has adminId but no superAdminId)
+      else if (creatorInfo && creatorInfo.adminId && !creatorInfo.superAdminId) {
+        // If created by Admin (under Main Admin), place under mainAdmin/mainAdmin/admins/{adminId}/users
+        path = `${MAIN_ADMIN_COLLECTION}/${MAIN_ADMIN_DOC}/${ADMINS_COLLECTION}/${creatorInfo.adminId}/${USERS_COLLECTION}`;
+        console.log('📁 Creating user under Admin (Main Admin child) at path:', path);
+        console.log('📁 With user data:', userDoc);
+        
+        // Create users subcollection under the admin if it doesn't exist
+        docRef = await addDoc(
+          collection(db, MAIN_ADMIN_COLLECTION, MAIN_ADMIN_DOC, ADMINS_COLLECTION, creatorInfo.adminId, USERS_COLLECTION),
+          userDoc
+        );
+      }
+      // Check if creator is Admin under Super Admin (has both superAdminId and adminId)
       else if (creatorInfo && creatorInfo.superAdminId && creatorInfo.adminId) {
-        // If created by Admin, place under the admin's collection
+        // If created by Admin (under Super Admin), place under the admin's collection
         path = `${MAIN_ADMIN_COLLECTION}/${MAIN_ADMIN_DOC}/${SUPER_ADMINS_COLLECTION}/${creatorInfo.superAdminId}/${ADMINS_COLLECTION}/${creatorInfo.adminId}/${USERS_COLLECTION}`;
-        console.log('📁 Creating user under Admin at path:', path);
+        console.log('📁 Creating user under Admin (Super Admin child) at path:', path);
         console.log('📁 With user data:', userDoc);
         
         // Create users subcollection under the admin if it doesn't exist
@@ -628,7 +747,7 @@ export const getAllUsers = async () => {
         collection(db, 'mainAdmin', 'mainAdmin', 'admins')
       );
       
-      mainAdminAdminsSnapshot.forEach((adminDoc) => {
+      for (const adminDoc of mainAdminAdminsSnapshot.docs) {
         const adminData = adminDoc.data();
         users.push({
           id: adminDoc.id,
@@ -642,7 +761,33 @@ export const getAllUsers = async () => {
           createdBy: adminData['createdBy'],
           createdAt: adminData['createdat']
         });
-      });
+        
+        // Get users under this admin (admins created by Main Admin)
+        try {
+          const adminUsersSnapshot = await getDocs(
+            collection(db, 'mainAdmin', 'mainAdmin', 'admins', adminDoc.id, 'users')
+          );
+          
+          adminUsersSnapshot.forEach((userDoc) => {
+            const userData = userDoc.data();
+            users.push({
+              id: userDoc.id,
+              email: userData['Email'],
+              name: userData['Full Name'],
+              password: userData['Password'],
+              mobile: userData['Phone Number'],
+              phone: userData['Phone Number'],
+              role: userData['Role'],
+              status: userData['status'],
+              createdBy: userData['createdBy'],
+              createdAt: userData['createdat']
+            });
+          });
+          console.log(`✅ Fetched ${adminUsersSnapshot.size} users from admin ${adminDoc.id} (Main Admin child)`);
+        } catch (err) {
+          console.log(`No users found under admin ${adminDoc.id} or collection doesn't exist yet`);
+        }
+      }
       console.log(`✅ Fetched ${mainAdminAdminsSnapshot.size} admins from mainAdmin/mainAdmin/admins`);
     } catch (error) {
       console.warn('⚠️ Error fetching admins from mainAdmin/mainAdmin/admins:', error);
@@ -763,6 +908,62 @@ export const getUsersByCreator = async (creatorEmail) => {
       });
     }
     
+    // Check admins directly under Main Admin (created by Main Admin)
+    try {
+      const mainAdminAdminsSnapshot = await getDocs(
+        collection(db, 'mainAdmin', 'mainAdmin', 'admins')
+      );
+      
+      for (const adminDoc of mainAdminAdminsSnapshot.docs) {
+        const adminData = adminDoc.data();
+        
+        // Check if this admin was created by the creator
+        if (adminData['createdBy'] === creatorEmail) {
+          users.push({
+            id: adminDoc.id,
+            email: adminData['Email'],
+            name: adminData['Full Name'],
+            password: adminData['Password'],
+            mobile: adminData['Phone Number'],
+            phone: adminData['Phone Number'],
+            role: adminData['Role'],
+            status: adminData['status'],
+            createdBy: adminData['createdBy'],
+            createdAt: adminData['createdat']
+          });
+        }
+        
+        // Get users under this admin (for admins created by the creator or if admin is the creator)
+        if (adminData['createdBy'] === creatorEmail || adminData['Email'] === creatorEmail) {
+          try {
+            const adminUsersSnapshot = await getDocs(
+              collection(db, 'mainAdmin', 'mainAdmin', 'admins', adminDoc.id, 'users')
+            );
+            
+            adminUsersSnapshot.forEach((userDoc) => {
+              const userData = userDoc.data();
+              users.push({
+                id: userDoc.id,
+                email: userData['Email'],
+                name: userData['Full Name'],
+                password: userData['Password'],
+                mobile: userData['Phone Number'],
+                phone: userData['Phone Number'],
+                role: userData['Role'],
+                status: userData['status'],
+                createdBy: userData['createdBy'],
+                createdAt: userData['createdat']
+              });
+            });
+          } catch (err) {
+            console.log(`No users found under admin ${adminDoc.id} or collection doesn't exist yet`);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error fetching from mainAdmin/mainAdmin/admins:', error);
+    }
+    
     return { success: true, data: users };
   } catch (error) {
     console.error('Error getting users by creator:', error);
@@ -826,34 +1027,47 @@ export const getUserHierarchy = async (userEmail, userRole) => {
       
       // Also find the admin's location to get their superAdminId and adminId
       const adminLocation = await findUserLocation(userEmail);
-      if (adminLocation.success && adminLocation.superAdminId && adminLocation.adminId) {
+      if (adminLocation.success) {
         // Check for users directly under this admin
         try {
-          const adminUsersSnapshot = await getDocs(
-            collection(db, 'mainAdmin', 'mainAdmin', 'superadmins', adminLocation.superAdminId, 'admins', adminLocation.adminId, 'users')
-          );
+          let adminUsersSnapshot;
           
-          adminUsersSnapshot.forEach((userDoc) => {
-            const userData = userDoc.data();
-            const user = {
-              id: userDoc.id,
-              email: userData['Email'],
-              name: userData['Full Name'],
-              password: userData['Password'],
-              mobile: userData['Phone Number'],
-              phone: userData['Phone Number'],
-              role: userData['Role'],
-              status: userData['status'],
-              createdBy: userData['createdBy'],
-              createdAt: userData['createdat']
-            };
-            
-            // Check if this user is already in the hierarchy to avoid duplicates
-            const isDuplicate = hierarchy.users.some(existingUser => existingUser.email === user.email);
-            if (!isDuplicate) {
-              hierarchy.users.push(user);
-            }
-          });
+          // Check if admin is under Super Admin or directly under Main Admin
+          if (adminLocation.superAdminId && adminLocation.adminId) {
+            // Admin under Super Admin
+            adminUsersSnapshot = await getDocs(
+              collection(db, 'mainAdmin', 'mainAdmin', 'superadmins', adminLocation.superAdminId, 'admins', adminLocation.adminId, 'users')
+            );
+          } else if (adminLocation.adminId && !adminLocation.superAdminId) {
+            // Admin directly under Main Admin
+            adminUsersSnapshot = await getDocs(
+              collection(db, 'mainAdmin', 'mainAdmin', 'admins', adminLocation.adminId, 'users')
+            );
+          }
+          
+          if (adminUsersSnapshot) {
+            adminUsersSnapshot.forEach((userDoc) => {
+              const userData = userDoc.data();
+              const user = {
+                id: userDoc.id,
+                email: userData['Email'],
+                name: userData['Full Name'],
+                password: userData['Password'],
+                mobile: userData['Phone Number'],
+                phone: userData['Phone Number'],
+                role: userData['Role'],
+                status: userData['status'],
+                createdBy: userData['createdBy'],
+                createdAt: userData['createdat']
+              };
+              
+              // Check if this user is already in the hierarchy to avoid duplicates
+              const isDuplicate = hierarchy.users.some(existingUser => existingUser.email === user.email);
+              if (!isDuplicate) {
+                hierarchy.users.push(user);
+              }
+            });
+          }
         } catch (err) {
           console.log(`No users found under admin ${adminLocation.adminId} or collection doesn't exist yet`);
         }
@@ -869,37 +1083,83 @@ export const getUserHierarchy = async (userEmail, userRole) => {
 
 export const updateUser = async (userEmail, userData) => {
   try {
+    console.log('🔍 updateUser called for:', userEmail);
+    console.log('📝 Update data:', userData);
+    
     // Find the user's location in the hierarchy
     const userLocation = await findUserLocation(userEmail);
     
     if (!userLocation.success) {
+      console.error('❌ User not found in database:', userEmail);
       return { success: false, error: 'User not found in database' };
     }
     
+    console.log('📍 User location:', userLocation);
+    
     let docRef;
+    let path;
     
     // Update based on role and location
     if (userLocation.role === 'main_admin') {
       // Update main admin
+      path = 'mainAdmin/mainAdmin';
       docRef = doc(db, 'mainAdmin', 'mainAdmin');
     } else if (userLocation.role === 'super_admin') {
       // Update super admin
+      path = `mainAdmin/mainAdmin/superadmins/${userLocation.userId}`;
       docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.userId);
     } else if (userLocation.role === 'admin') {
-      // Update admin
-      docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'admins', userLocation.userId);
+      // Check if admin is directly under Main Admin or under a Super Admin
+      if (userLocation.superAdminId) {
+        // Admin under Super Admin
+        path = `mainAdmin/mainAdmin/superadmins/${userLocation.superAdminId}/admins/${userLocation.userId}`;
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'admins', userLocation.userId);
+      } else {
+        // Admin directly under Main Admin
+        path = `mainAdmin/mainAdmin/admins/${userLocation.userId}`;
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'admins', userLocation.userId);
+      }
     } else if (userLocation.role === 'user') {
-      // Update user (directly under superadmin)
-      docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'users', userLocation.userId);
+      // Check if user is under Admin or directly under Super Admin or Main Admin
+      if (userLocation.adminId && userLocation.superAdminId) {
+        // User under Admin (who is under Super Admin)
+        path = `mainAdmin/mainAdmin/superadmins/${userLocation.superAdminId}/admins/${userLocation.adminId}/users/${userLocation.userId}`;
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'admins', userLocation.adminId, 'users', userLocation.userId);
+      } else if (userLocation.adminId && !userLocation.superAdminId) {
+        // User under Admin (who is directly under Main Admin)
+        path = `mainAdmin/mainAdmin/admins/${userLocation.adminId}/users/${userLocation.userId}`;
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'admins', userLocation.adminId, 'users', userLocation.userId);
+      } else if (userLocation.superAdminId) {
+        // User directly under Super Admin
+        path = `mainAdmin/mainAdmin/superadmins/${userLocation.superAdminId}/users/${userLocation.userId}`;
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'users', userLocation.userId);
+      } else {
+        // User directly under Main Admin
+        path = `mainAdmin/mainAdmin/users/${userLocation.userId}`;
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'users', userLocation.userId);
+      }
     } else {
+      console.error('❌ Invalid user role:', userLocation.role);
       return { success: false, error: 'Invalid user role' };
     }
     
+    console.log('📍 Updating document at path:', path);
+    console.log('📝 With data:', userData);
+    
     await updateDoc(docRef, userData);
-    console.log(`✅ Updated ${userLocation.role} with email: ${userEmail}`);
+    console.log(`✅ Document update completed for ${userLocation.role} with email: ${userEmail}`);
+    
+    // Verify the update by reading the document back
+    const verifyDoc = await getDoc(docRef);
+    if (verifyDoc.exists()) {
+      console.log('🔍 Verified document data after update:', verifyDoc.data());
+    } else {
+      console.error('❌ Document does not exist after update!');
+    }
+    
     return { success: true };
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error('❌ Error updating user:', error);
     return { success: false, error: error.message };
   }
 };
@@ -920,11 +1180,29 @@ export const deleteUser = async (userId, userEmail) => {
       // Delete super admin
       docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userId);
     } else if (userLocation.role === 'admin') {
-      // Delete admin
-      docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'admins', userId);
+      // Check if admin is directly under Main Admin or under a Super Admin
+      if (userLocation.superAdminId) {
+        // Admin under Super Admin
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'admins', userId);
+      } else {
+        // Admin directly under Main Admin
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'admins', userId);
+      }
     } else if (userLocation.role === 'user') {
-      // Delete user (directly under superadmin)
-      docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'users', userId);
+      // Check if user is under Admin or directly under Super Admin or Main Admin
+      if (userLocation.adminId && userLocation.superAdminId) {
+        // User under Admin (who is under Super Admin)
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'admins', userLocation.adminId, 'users', userId);
+      } else if (userLocation.adminId && !userLocation.superAdminId) {
+        // User under Admin (who is directly under Main Admin)
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'admins', userLocation.adminId, 'users', userId);
+      } else if (userLocation.superAdminId) {
+        // User directly under Super Admin
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'superadmins', userLocation.superAdminId, 'users', userId);
+      } else {
+        // User directly under Main Admin
+        docRef = doc(db, 'mainAdmin', 'mainAdmin', 'users', userId);
+      }
     } else {
       return { success: false, error: 'Invalid user role' };
     }

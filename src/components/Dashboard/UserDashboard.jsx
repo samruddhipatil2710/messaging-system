@@ -18,6 +18,8 @@ const UserDashboard = () => {
         <Routes>
           <Route index element={<UserHome />} />
           <Route path="my-areas" element={<MyAreas />} />
+                    <Route path="view-allocated-data" element={<ViewAllocatedData />} />
+          <Route path="send-messages" element={<MessageComposer />} />
           <Route path="messages" element={<MessageComposer />} />
           <Route path="message-history" element={<MessageHistory />} />
           <Route path="activity-logs" element={<ActivityLogs />} />

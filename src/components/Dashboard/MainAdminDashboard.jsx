@@ -354,6 +354,7 @@ const MainAdminDashboard = () => {
           <Route path="upload-district-data" element={<UploadDistrictData />} />
           <Route path="data-allocation" element={<DataAllocation />} />
           <Route path="view-allocated-data" element={<ViewAllocatedData />} />
+          <Route path="send-messages" element={<MessageComposer />} />
           <Route path="messages" element={<MessageComposer />} />
           <Route path="data" element={<DataAccessManagement />} />
           <Route path="message-history" element={<MessageHistory />} />

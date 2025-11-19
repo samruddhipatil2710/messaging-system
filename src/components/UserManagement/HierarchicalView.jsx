@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
 import ConfirmModal from '../Common/ConfirmModal';
+import AlertModal from '../Common/AlertModal';
 import './HierarchicalView.css';
 
 const HierarchicalView = () => {
@@ -18,6 +19,11 @@ const HierarchicalView = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
 
   const handleEdit = (userToEdit) => {
     if (userToEdit) {
@@ -57,12 +63,25 @@ const HierarchicalView = () => {
         await loadHierarchyData();
         
         console.log('✅ User deleted successfully');
+        setAlertModal({
+          isOpen: true,
+          message: 'User deleted successfully!',
+          type: 'success'
+        });
       } else {
-        alert('Error deleting user: ' + result.error);
+        setAlertModal({
+          isOpen: true,
+          message: 'Error deleting user: ' + result.error,
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Failed to delete user: ' + error.message);
+      setAlertModal({
+        isOpen: true,
+        message: 'Failed to delete user: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -1064,6 +1083,14 @@ const HierarchicalView = () => {
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"
+      />
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
       />
     </>
   );

@@ -20,31 +20,21 @@ const MessageComposer = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   
-  // Message templates
-  // Hidden webhook template for API functionality
-  const webhookTemplate = {
-    id: 'webhook',
-    name: 'WhatsApp API Format',
-    template: '⭐ name कडून हार्दिक शुभेच्छा!⭐\n\nही दिवाळी तुमच्या आयुष्यात सोन्याची झळाळी आणि स्वप्नांची चमक घेऊन येवो 💎\n\nया सणासुदीला खास ऑफर्सचा लाभ घ्या ✨\n\n🎁 भेट द्या: text\n\nधन्यवाद 🙏!!',
-    description: 'WhatsApp API format with Marathi template'
-  };
-  
-  // Visible message templates
+  // Message templates with webhook URLs
   const messageTemplates = [
+    {
+      id: 'jewelry',
+      name: 'Jwellary Shop',
+      template: '✨ name ज्वेलर्स वरून दिवाळी शुभेच्छा! ✨\n\nदिवाळी सेल: सर्व दागिन्यांवर 20% सूट\nविशेष ऑफर: 5 ग्रॅम सोन्यावर 1 ग्रॅम फ्री\n\nआजच भेट द्या: text\n\nधन्यवाद 🙏',
+      webhookUrl: 'https://webhook.whatapi.in/webhook/6916c0f71b9845c02d4cc81d',
+      webhookMessage: 'raj,name,text'
+    },
     {
       id: 'election',
       name: 'Election',
-      template: '⭐ name कडून हार्दिक शुभेच्छा!⭐\n\nही दिवाळी तुमच्या आयुष्यात सोन्याची झळाळी आणि स्वप्नांची चमक घेऊन येवो 💎\n\nया सणासुदीला खास ऑफर्सचा लाभ घ्या ✨\n\n🎁 भेट द्या: text\n\nधन्यवाद 🙏!!'
-    },
-    {
-      id: 'jewelry',
-      name: 'Jewelry Shop',
-      template: '✨ name ज्वेलर्स वरून दिवाळी शुभेच्छा! ✨\n\nदिवाळी सेल: सर्व दागिन्यांवर 20% सूट\nविशेष ऑफर: 5 ग्रॅम सोन्यावर 1 ग्रॅम फ्री\n\nआजच भेट द्या: text\n\nधन्यवाद 🙏'
-    },
-    {
-      id: 'festival',
-      name: 'Festival Greetings',
-      template: 'name कडून आपल्या सर्वांना दिवाळीच्या हार्दिक शुभेच्छा!\n\nप्रकाशाचा सण आपल्या जीवनात नवी उर्जा आणि समृद्धी घेऊन येवो.\n\nविशेष संदेश: text\n\nआपला आभारी 🙏'
+      template: '✨ name ✨\n\nआपल्या परिसराच्या विकासासाठी तुमचा विश्वासू उमेदवार!\n\nरस्ते, पाणी, स्वच्छता, आरोग्य आणि जनतेची सेवा — हीच आमची प्राथमिकता.\n\nया निवडणुकीत आपल्या उमेदवाराला साथ द्या आणि विकासाला मत द्या.',
+      webhookUrl: 'https://webhook.whatapi.in/webhook/69182d6e1b9845c02d4dbdef',
+      webhookMessage: 'ele,name'
     }
   ];
   const [confirmMessage, setConfirmMessage] = useState('');
@@ -376,13 +366,11 @@ const MessageComposer = () => {
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
     
-    // Replace placeholders with actual values for all templates
-    let messageText = template.template;
-    messageText = messageText.replace(/name/g, user?.name || 'Main Admin');
-    messageText = messageText.replace(/text/g, 'Your special offer here');
-    setMessage(messageText);
-    
-    setShowPreview(true);
+    if (template) {
+      // Use template as-is with placeholders
+      setMessage(template.template);
+      setShowPreview(true);
+    }
   };
 
   // Close preview
@@ -598,11 +586,15 @@ const MessageComposer = () => {
       let failedCount = 0;
       
       if (type === 'whatsapp') {
-        // WhatsApp API integration using the provided webhook
+        // WhatsApp API integration using the selected template's webhook
         console.log('📱 Sending WhatsApp messages...');
         
-        const webhookUrl = 'https://webhook.whatapi.in/webhook/6916c0f71b9845c02d4cc81d';
+        // Get webhook URL and message from selected template
+        const webhookUrl = selectedTemplate?.webhookUrl || 'https://webhook.whatapi.in/webhook/6916c0f71b9845c02d4cc81d';
+        const webhookMessage = selectedTemplate?.webhookMessage || 'raj,name,text';
         
+        console.log('Using webhook URL:', webhookUrl);
+        console.log('Using webhook message:', webhookMessage);
         console.log('Total mobile numbers to process:', mobileNumbers.length);
         
         // Process one number at a time to ensure reliability
@@ -617,22 +609,11 @@ const MessageComposer = () => {
               formattedNumber = '91' + formattedNumber;
             }
             
-            // Use the actual message content from the template
-            // Don't send 'raj,name,text' literally, but use the actual template content
-            let personalizedMessage = messageText;
-            
-            // If the message is empty, use the hidden webhook template
-            if (!personalizedMessage || personalizedMessage.trim() === '') {
-              personalizedMessage = webhookTemplate.template;
-            }
-            
             // For debugging - log the message being sent
-            console.log(`Message content being sent: ${personalizedMessage}`);
+            console.log(`Template: ${selectedTemplate?.name}, Webhook Message: ${webhookMessage}`);
             
-            // Construct the webhook URL with parameters
-            // The webhook expects exactly: number=91XXXXXXXXXX&message=raj,name,text
-            // So we'll force the message to be 'raj,name,text' for the webhook
-            const webhookMessage = 'raj,name,text';
+            // Construct the webhook URL with template identifier
+            // Webhook provider will use this identifier to send pre-configured message
             const url = `${webhookUrl}?number=${formattedNumber}&message=${encodeURIComponent(webhookMessage)}`;
             
             console.log(`Sending to ${formattedNumber}: ${url}`);

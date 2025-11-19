@@ -113,10 +113,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (updatedUserData) => {
+    console.log('🔄 Updating user in AuthContext:', updatedUserData);
+    const newUser = { ...user, ...updatedUserData };
+    setUser(newUser);
+    sessionStorage.setItem('currentUser', JSON.stringify(newUser));
+    console.log('✅ User updated in AuthContext and sessionStorage');
+  };
+
   const value = {
     user,
     login,
     logout,
+    updateUser,
     loading,
     isAuthenticated: !!user,
   };

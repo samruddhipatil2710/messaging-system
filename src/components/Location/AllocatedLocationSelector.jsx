@@ -77,9 +77,11 @@ const AllocatedLocationSelector = ({ allocations = [], onLocationChange, onCount
   }, [allocations, user]);
 
   // Filter allocations to only include valid districts AND active date ranges
-  const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate date comparison
+  const todayStr = today.toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
   
-  console.log('🔍 Date Filtering - Today:', today);
+  console.log('🔍 Date Filtering - Today:', todayStr, 'Timestamp:', today.getTime());
   
   const filteredAllocations = allocations.filter(a => {
     // Check if district is valid
@@ -88,25 +90,30 @@ const AllocatedLocationSelector = ({ allocations = [], onLocationChange, onCount
       return false;
     }
     
-    // Check date range if dates are provided
+    // Check date range if BOTH dates are provided
     if (a.startDate && a.endDate) {
-      // Parse dates for comparison
-      const startDate = a.startDate;
-      const endDate = a.endDate;
+      // Normalize dates for comparison (remove time component)
+      const startDate = new Date(a.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(a.endDate);
+      endDate.setHours(23, 59, 59, 999); // Set to end of day
       
       // Check if today is within the allocation period
       const isWithinDateRange = today >= startDate && today <= endDate;
       
       console.log(`📅 Date Check for ${a.district} - ${a.city || a.village}:`);
-      console.log(`   Start: ${startDate}, End: ${endDate}, Today: ${today}`);
+      console.log(`   Start: ${a.startDate} (${startDate.getTime()})`);
+      console.log(`   End: ${a.endDate} (${endDate.getTime()})`);
+      console.log(`   Today: ${todayStr} (${today.getTime()})`);
       console.log(`   Within Range: ${isWithinDateRange ? '✅' : '❌'}`);
       
       if (!isWithinDateRange) {
-        console.log(`❌ Filtering out: ${a.district} - ${a.city || a.village} is outside date range (${startDate} to ${endDate})`);
+        console.log(`❌ Filtering out: ${a.district} - ${a.city || a.village} is outside date range (${a.startDate} to ${a.endDate})`);
         return false;
       }
     } else {
-      console.log(`⚠️ No dates for ${a.district} - ${a.city || a.village}, including by default`);
+      console.log(`⚠️ No date range for ${a.district} - ${a.city || a.village}, including by default (always visible)`);
     }
     
     console.log(`✅ Including: ${a.district} - ${a.city || a.village}`);

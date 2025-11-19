@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../Context/AuthContext';
+import AlertModal from '../Common/AlertModal';
 
 const EditUser = ({ role }) => {
   const navigate = useNavigate();
@@ -14,6 +15,12 @@ const EditUser = ({ role }) => {
   });
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    message: '',
+    type: 'info',
+    onConfirm: null
+  });
 
   useEffect(() => {
     // Get user data from sessionStorage
@@ -40,60 +47,80 @@ const EditUser = ({ role }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const showAlert = (message, type = 'info', onConfirm = null) => {
+    setAlertModal({
+      isOpen: true,
+      message,
+      type,
+      onConfirm: onConfirm || (() => setAlertModal(prev => ({ ...prev, isOpen: false })))
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validation
     if (!formData.name || !formData.email) {
-      alert('Name and Email are required!');
+      showAlert('Name and Email are required!', 'warning');
       return;
     }
 
-    const allUsers = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    // Check if email already exists (excluding current user)
-    const emailExists = allUsers.some(u => 
-      u.email === formData.email && u.id !== editingUser.id
-    );
-    
-    if (emailExists) {
-      alert('Email already exists!');
-      return;
-    }
+    try {
+      console.log('🚀 Starting user update...');
+      console.log('📋 Editing user:', editingUser);
+      console.log('📝 Form data:', formData);
 
-    // Update user
-    const updatedUsers = allUsers.map(u => {
-      if (u.id === editingUser.id) {
-        return {
-          ...u,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          role: formData.role,
-          // Only update password if provided
-          ...(formData.password && { password: formData.password })
-        };
+      // Import Firebase functions
+      const { updateUser: updateFirebaseUser, createActivityLog } = await import('../../firebase/firestore');
+
+      // Prepare update data
+      const updateData = {
+        'Full Name': formData.name,
+        'Phone Number': formData.phone,
+        'Role': formData.role
+      };
+
+      // Only include password if it was changed
+      if (formData.password && formData.password.trim() !== '') {
+        updateData['Password'] = formData.password;
       }
-      return u;
-    });
 
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
+      console.log('📤 Calling updateFirebaseUser with:', editingUser.email, updateData);
 
-    // Add activity log
-    const logs = JSON.parse(localStorage.getItem('activityLogs') || '[]');
-    logs.push({
-      action: 'user_updated',
-      performedBy: user.email,
-      details: `Updated user: ${formData.name} (${formData.email})`,
-      timestamp: new Date().toISOString()
-    });
-    localStorage.setItem('activityLogs', JSON.stringify(logs));
+      // Update user in Firestore
+      const result = await updateFirebaseUser(editingUser.email, updateData);
+      
+      console.log('📥 Update result:', result);
 
-    // Clear session storage
-    sessionStorage.removeItem('editUser');
+      if (!result.success) {
+        showAlert('Failed to update user: ' + (result.error || 'Unknown error'), 'error');
+        return;
+      }
 
-    alert('User updated successfully!');
-    navigate(-1); // Go back to previous page
+      // Create activity log
+      await createActivityLog({
+        action: 'user_updated',
+        performedBy: user.email,
+        targetUser: editingUser.email,
+        details: `Updated user: ${formData.name} (${editingUser.email})`,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('✅ User updated successfully');
+
+      // Clear session storage and navigate back
+      showAlert('User updated successfully!', 'success', () => {
+        sessionStorage.removeItem('editUser');
+        navigate(-1);
+      });
+    } catch (error) {
+      console.error('❌ Error updating user:', error);
+      showAlert('Failed to update user: ' + error.message, 'error');
+    }
   };
 
   const handleCancel = () => {
@@ -129,6 +156,14 @@ const EditUser = ({ role }) => {
 
   return (
     <>
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={closeAlert}
+        onConfirm={alertModal.onConfirm}
+      />
+
       <div className="page-header">
         <h1 className="page-title">Edit User</h1>
         <p className="page-subtitle">Update user information</p>
